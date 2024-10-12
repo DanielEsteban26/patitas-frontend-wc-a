@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.reactive.function.client.WebClient;
 import pe.edu.cibertec.patitas_frontend_wc_a.dto.LoginRequestDTO;
 import pe.edu.cibertec.patitas_frontend_wc_a.dto.LoginResponseDTO;
+import pe.edu.cibertec.patitas_frontend_wc_a.dto.LogoutRequestDTO;
+import pe.edu.cibertec.patitas_frontend_wc_a.dto.LogoutResponseDTO;
 import pe.edu.cibertec.patitas_frontend_wc_a.viewmodel.LoginModel;
 import reactor.core.publisher.Mono;
 
@@ -45,7 +47,6 @@ public class LoginController {
         }
 
         try {
-
             // invocar servicio de autenticación
             LoginRequestDTO loginRequestDTO = new LoginRequestDTO(tipoDocumento, numeroDocumento, password);
             Mono<LoginResponseDTO> monoLoginResponseDTO = webClientAutenticacion.post()
@@ -57,29 +58,45 @@ public class LoginController {
             // recuperar resultado modo bloqueante (Sincrónico)
             LoginResponseDTO loginResponseDTO = monoLoginResponseDTO.block();
 
-            if (loginResponseDTO.codigo().equals("00")){
-
+            if (loginResponseDTO.codigo().equals("00")) {
                 LoginModel loginModel = new LoginModel("00", "", loginResponseDTO.nombreUsuario());
                 model.addAttribute("loginModel", loginModel);
                 return "principal";
-
             } else {
-
                 LoginModel loginModel = new LoginModel("02", "Error: Autenticación fallida", "");
                 model.addAttribute("loginModel", loginModel);
                 return "inicio";
-
             }
 
-        } catch(Exception e) {
-
+        } catch (Exception e) {
             LoginModel loginModel = new LoginModel("99", "Error: Ocurrió un problema en la autenticación", "");
             model.addAttribute("loginModel", loginModel);
             System.out.println(e.getMessage());
             return "inicio";
-
         }
-
     }
 
+    @PostMapping("/cerrar-sesion")
+    public String cerrarSesion(@RequestParam("tipoDocumento") String tipoDocumento,
+                               @RequestParam("numeroDocumento") String numeroDocumento,
+                               Model model) {
+
+        // Crear solicitud de cierre de sesión
+        LogoutRequestDTO logoutRequestDTO = new LogoutRequestDTO(tipoDocumento, numeroDocumento);
+        Mono<LogoutResponseDTO> monoLogoutResponseDTO = webClientAutenticacion.post()
+                .uri("/logout")
+                .body(Mono.just(logoutRequestDTO), LogoutRequestDTO.class)
+                .retrieve()
+                .bodyToMono(LogoutResponseDTO.class);
+
+        // Recuperar resultado modo bloqueante (Sincrónico)
+        LogoutResponseDTO logoutResponseDTO = monoLogoutResponseDTO.block();
+
+        if (logoutResponseDTO.codigo().equals("00")) {
+            return "redirect:/login/inicio";
+        } else {
+            model.addAttribute("error", "Error al cerrar sesión");
+            return "principal";
+        }
+    }
 }

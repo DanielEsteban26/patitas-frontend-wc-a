@@ -5,11 +5,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 import pe.edu.cibertec.patitas_frontend_wc_a.dto.LoginRequestDTO;
 import pe.edu.cibertec.patitas_frontend_wc_a.dto.LoginResponseDTO;
+import pe.edu.cibertec.patitas_frontend_wc_a.dto.LogoutRequestDTO;
+import pe.edu.cibertec.patitas_frontend_wc_a.dto.LogoutResponseDTO;
 import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/login")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "http://localhost:5173/")
 public class LoginControllerAsync {
 
     @Autowired
@@ -19,16 +21,14 @@ public class LoginControllerAsync {
     public Mono<LoginResponseDTO> autenticar(@RequestBody LoginRequestDTO loginRequestDTO) {
 
         // validar campos de entrada
-        if(loginRequestDTO.tipoDocumento() == null || loginRequestDTO.tipoDocumento().trim().length() == 0 ||
-            loginRequestDTO.numeroDocumento() == null || loginRequestDTO.numeroDocumento().trim().length() == 0 ||
-            loginRequestDTO.password() == null || loginRequestDTO.password().trim().length() == 0) {
+        if (loginRequestDTO.tipoDocumento() == null || loginRequestDTO.tipoDocumento().trim().length() == 0 ||
+                loginRequestDTO.numeroDocumento() == null || loginRequestDTO.numeroDocumento().trim().length() == 0 ||
+                loginRequestDTO.password() == null || loginRequestDTO.password().trim().length() == 0) {
 
             return Mono.just(new LoginResponseDTO("01", "Error: Debe completar correctamente sus credenciales", "", ""));
-
         }
 
         try {
-
             // consumir servicio de autenticación (Del Backend)
             return webClientAutenticacion.post()
                     .uri("/login")
@@ -36,22 +36,40 @@ public class LoginControllerAsync {
                     .retrieve()
                     .bodyToMono(LoginResponseDTO.class)
                     .flatMap(response -> {
-
-                        if(response.codigo().equals("00")) {
-                            return Mono.just(new LoginResponseDTO("00", "", response.nombreUsuario(), ""));
+                        if (response.codigo().equals("00")) {
+                            return Mono.just(new LoginResponseDTO("00", "", response.nombreUsuario(), response.correoUsuario()));
                         } else {
                             return Mono.just(new LoginResponseDTO("02", "Error: Autenticación fallida", "", ""));
                         }
-
                     });
 
-        } catch(Exception e) {
-
+        } catch (Exception e) {
             System.out.println(e.getMessage());
             return Mono.just(new LoginResponseDTO("99", "Error: Ocurrió un problema en la autenticación", "", ""));
-
         }
-
     }
 
+    @PostMapping("/cerrar-sesion-async")
+    public Mono<LogoutResponseDTO> cerrarSesion(@RequestBody LogoutRequestDTO logoutRequestDTO) {
+        System.out.println("Iniciando cierre de sesión para: " + logoutRequestDTO.numeroDocumento());
+
+        // Consumir servicio de cierre de sesión (Del Backend)
+        return webClientAutenticacion.post()
+                .uri("/logout")
+                .body(Mono.just(logoutRequestDTO), LogoutRequestDTO.class)
+                .retrieve()
+                .bodyToMono(LogoutResponseDTO.class)
+                .flatMap(response -> {
+                    System.out.println("Respuesta del servicio de backend: " + response);
+                    if (response.codigo().equals("00")) {
+                        return Mono.just(new LogoutResponseDTO("00", "Cierre de Sesion", response.nombreUsuario(), response.correoUsuario()));
+                    } else {
+                        return Mono.just(new LogoutResponseDTO("02", "Error al cerrar sesión", "", ""));
+                    }
+                })
+                .onErrorResume(e -> {
+                    System.out.println("Error en el servicio de backend: " + e.getMessage());
+                    return Mono.just(new LogoutResponseDTO("99", "Error: Ocurrió un problema en el cierre de sesión", "", ""));
+                });
+    }
 }
