@@ -20,56 +20,75 @@ public class LoginControllerAsync {
     @PostMapping("/autenticar-async")
     public Mono<LoginResponseDTO> autenticar(@RequestBody LoginRequestDTO loginRequestDTO) {
 
-        // validar campos de entrada
-        if (loginRequestDTO.tipoDocumento() == null || loginRequestDTO.tipoDocumento().trim().length() == 0 ||
-                loginRequestDTO.numeroDocumento() == null || loginRequestDTO.numeroDocumento().trim().length() == 0 ||
-                loginRequestDTO.password() == null || loginRequestDTO.password().trim().length() == 0) {
+        // Validar campos de entrada
+        if (loginRequestDTO.tipoDocumento() == null || loginRequestDTO.tipoDocumento().trim().isEmpty() ||
+                loginRequestDTO.numeroDocumento() == null || loginRequestDTO.numeroDocumento().trim().isEmpty() ||
+                loginRequestDTO.password() == null || loginRequestDTO.password().trim().isEmpty()) {
 
-            return Mono.just(new LoginResponseDTO("01", "Error: Debe completar correctamente sus credenciales", "", ""));
+            return  Mono.just(new LoginResponseDTO("01", "Error: Debe completar correctamente sus credenciales", "", ""));
+
         }
 
         try {
-            // consumir servicio de autenticación (Del Backend)
+
+            // Realizamos la solicitud al servicio
             return webClientAutenticacion.post()
-                    .uri("/login")
+                    .uri("http://localhost:8081/autenticacion/login")
                     .body(Mono.just(loginRequestDTO), LoginRequestDTO.class)
                     .retrieve()
                     .bodyToMono(LoginResponseDTO.class)
                     .flatMap(response -> {
-                        if (response.codigo().equals("00")) {
-                            return Mono.just(new LoginResponseDTO("00", "", response.nombreUsuario(), response.correoUsuario()));
+                        if(response.codigo().equals("00")) {
+                            return Mono.just(new LoginResponseDTO("00", "", response.nombreUsuario(), ""));
                         } else {
-                            return Mono.just(new LoginResponseDTO("02", "Error: Autenticación fallida", "", ""));
+                            return Mono.just(new LoginResponseDTO("02", "Error: Credenciales incorrectas", "", ""));
                         }
                     });
 
         } catch (Exception e) {
+
             System.out.println(e.getMessage());
-            return Mono.just(new LoginResponseDTO("99", "Error: Ocurrió un problema en la autenticación", "", ""));
+            return Mono.just(new LoginResponseDTO("99", "Error: Ocurrió un problema en al autenticación.", "", ""));
+
         }
+
     }
 
     @PostMapping("/cerrar-sesion-async")
     public Mono<LogoutResponseDTO> cerrarSesion(@RequestBody LogoutRequestDTO logoutRequestDTO) {
-        System.out.println("Iniciando cierre de sesión para: " + logoutRequestDTO.numeroDocumento());
 
-        // Consumir servicio de cierre de sesión (Del Backend)
-        return webClientAutenticacion.post()
-                .uri("/logout")
-                .body(Mono.just(logoutRequestDTO), LogoutRequestDTO.class)
-                .retrieve()
-                .bodyToMono(LogoutResponseDTO.class)
-                .flatMap(response -> {
-                    System.out.println("Respuesta del servicio de backend: " + response);
-                    if (response.codigo().equals("00")) {
-                        return Mono.just(new LogoutResponseDTO("00", "Cierre de Sesion", response.nombreUsuario(), response.correoUsuario()));
-                    } else {
-                        return Mono.just(new LogoutResponseDTO("02", "Error al cerrar sesión", "", ""));
-                    }
-                })
-                .onErrorResume(e -> {
-                    System.out.println("Error en el servicio de backend: " + e.getMessage());
-                    return Mono.just(new LogoutResponseDTO("99", "Error: Ocurrió un problema en el cierre de sesión " + e.getMessage(), "", ""));
-                });
+        // Validar campos de entrada
+        if (logoutRequestDTO.tipoDocumento() == null || logoutRequestDTO.tipoDocumento().trim().isEmpty() ||
+                logoutRequestDTO.numeroDocumento() == null || logoutRequestDTO.numeroDocumento().trim().isEmpty()) {
+
+            return  Mono.just(new LogoutResponseDTO("01", "Error: Debe completar correctamente sus credenciales"));
+
+        }
+
+        try {
+
+            // Realizamos la solicitud al servicio
+            return webClientAutenticacion.post()
+                    .uri("http://localhost:8081/autenticacion/logout")
+                    .body(Mono.just(logoutRequestDTO), LogoutRequestDTO.class)
+                    .retrieve()
+                    .bodyToMono(LogoutResponseDTO.class)
+                    .flatMap(response -> {
+                        if(response.codigo().equals("00")) {
+                            return Mono.just(new LogoutResponseDTO("00", ""));
+                        } else {
+                            return Mono.just(new LogoutResponseDTO("02", "Error: No se puedo cerrar sesión"));
+                        }
+                    });
+
+        } catch (Exception e) {
+
+            System.out.println(e.getMessage());
+            return Mono.just(new LogoutResponseDTO("99", "Error: Ocurrió un problema en al cerrar sesión."));
+
+        }
+
     }
+
+
 }
