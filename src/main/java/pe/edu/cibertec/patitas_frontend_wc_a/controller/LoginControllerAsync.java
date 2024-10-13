@@ -69,7 +69,7 @@ public class LoginControllerAsync {
                 })
                 .onErrorResume(e -> {
                     System.out.println("Error en el servicio de backend: " + e.getMessage());
-                    return Mono.just(new LogoutResponseDTO("99", "Error: Ocurrió un problema en el cierre de sesión", "", ""));
+                    return Mono.just(new LogoutResponseDTO("99", "Error: Ocurrió un problema en el cierre de sesión " + e.getMessage(), "", ""));
                 });
     }
 }
